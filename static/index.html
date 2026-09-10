@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AERIS-C2 | Smart Governance, Alerting & Audit Console</title>
+  <meta name="description" content="AERIS-C2 Civil Security Console with Real-time Alerting, Operator Disposition, and Append-Only Audit Logging">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Custom App CSS -->
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+  <!-- Top Header Bar -->
+  <header class="header-bar">
+    <div class="brand-section">
+      <div class="brand-logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="brand-title">AERIS-C2</div>
+      <div class="brand-subtitle">Civil Security C2 & Audit Console</div>
+    </div>
+
+    <div class="header-actions">
+      <!-- Operator Identity Selection -->
+      <div class="operator-select-group">
+        <label>Operator:</label>
+        <input type="text" id="operator-id-input" value="OFFICER-101" style="width: 90px;">
+        <select id="operator-role-select">
+          <option value="OPERATOR">OPERATOR</option>
+          <option value="SUPERVISOR">SUPERVISOR</option>
+          <option value="ADMIN">ADMIN</option>
+        </select>
+      </div>
+
+      <button class="draw-zone-btn" id="draw-zone-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+        </svg>
+        Draw Temp Red Zone
+      </button>
+    </div>
+
+    <div class="header-status">
+      <div class="status-badge" id="system-status-badge">
+        <div class="status-dot"></div>
+        <span id="status-text">SYSTEM ONLINE</span>
+      </div>
+
+      <div class="metric-pill">
+        <span>TRACKS:</span>
+        <span class="metric-val" id="header-active-count">0</span>
+      </div>
+
+      <div class="metric-pill">
+        <span>ALERTS:</span>
+        <span class="metric-val" id="header-alert-count">0</span>
+      </div>
+
+      <div class="clock-display" id="live-clock">--:--:-- UTC</div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    
+    <!-- Left Sidebar: Tabbed Navigation -->
+    <aside class="left-sidebar">
+      <div class="sidebar-tabs">
+        <button class="tab-btn active" id="tab-tracks">
+          Tracks <span class="metric-val" id="tracks-count-badge">0</span>
+        </button>
+        <button class="tab-btn" id="tab-alerts">
+          Alert Queue <span class="tab-badge" id="alerts-count-badge">0</span>
+        </button>
+        <button class="tab-btn" id="tab-vision">
+          Camera / ML
+        </button>
+        <button class="tab-btn" id="tab-audit">
+          Audit Log
+        </button>
+      </div>
+
+      <!-- Tab 1: Tracks Roster -->
+      <div class="tab-content" id="tracks-tab-content">
+        <div class="tracks-list" id="tracks-list-container">
+          <div class="no-tracks-state" id="no-tracks-msg">
+            <div class="radar-spinner"></div>
+            <p>Listening for active drone telemetry over LAN...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Alert Queue -->
+      <div class="tab-content" id="alerts-tab-content" style="display: none;">
+        <div id="alerts-list-container" style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="no-tracks-state" id="no-alerts-msg">
+            <p>No active alerts in queue. All systems normal.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Camera / ML Vision Panel -->
+      <div class="tab-content" id="vision-tab-content" style="display: none;">
+        <div class="vision-panel-container">
+          
+          <!-- Mock / Demo Status Notice -->
+          <div class="model-status-box">
+            <div class="model-status-tag">
+              <span class="pulse-dot"></span>
+              <span id="vision-model-tag">YOLOv8 DETECTOR (DEMO / MOCK)</span>
+            </div>
+            <p class="model-disclaimer-text">
+              Model evaluation pending; current vision mode is demonstration/mock. Precision/Recall: Unmeasured.
+            </p>
+          </div>
+
+          <!-- Video Viewport / Canvas Container -->
+          <div class="video-display-card">
+            <div class="video-header">
+              <span class="cam-id-pill" id="vision-cam-id">CAM-01 • AIRSPACE BEARING 045°</span>
+              <span class="live-rec-badge">LIVE INFERENCE</span>
+            </div>
+
+            <!-- Video Simulation / Canvas with Bounding Box Overlay -->
+            <div class="video-viewport" id="video-viewport">
+              <canvas id="vision-canvas" width="340" height="200"></canvas>
+              <div class="bbox-overlay" id="bbox-overlay" style="display: none;">
+                <div class="bbox-tag" id="bbox-tag">drone 94%</div>
+              </div>
+            </div>
+
+            <div class="video-controls-bar">
+              <button class="vision-btn" id="simulate-detect-btn">Simulate Frame Detection</button>
+              <label class="vision-upload-btn" for="video-frame-file">
+                Upload Frame
+                <input type="file" id="video-frame-file" accept="image/*,video/*" style="display: none;">
+              </label>
+            </div>
+          </div>
+
+          <!-- Active Correlation Box -->
+          <div class="correlation-status-card" id="correlation-card">
+            <div class="corr-header">
+              <span class="corr-title">TELEMETRY CORRELATION</span>
+              <span class="corr-pill unmatched" id="corr-status-pill">UNMATCHED</span>
+            </div>
+            <div class="corr-details" id="corr-details-body">
+              <div class="corr-row">
+                <span class="corr-label">Associated Track:</span>
+                <span class="corr-val" id="corr-track-val">None</span>
+              </div>
+              <div class="corr-row">
+                <span class="corr-label">Classification:</span>
+                <span class="corr-val" id="corr-class-val">--</span>
+              </div>
+              <div class="corr-notes" id="corr-notes-val">
+                No active telemetry correlated with optical sighting.
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Sighting Log -->
+          <div class="vision-log-section">
+            <div class="section-tag">RECENT OPTICAL OBSERVATIONS</div>
+            <div id="vision-observations-list" style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="no-sightings-msg" id="no-sightings-msg">No camera sightings recorded.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Tab 4: Append-Only Audit Log -->
+      <div class="tab-content" id="audit-tab-content" style="display: none;">
+        <div class="audit-toolbar">
+          <span class="sidebar-title">Security Event Log</span>
+          <div style="display: flex; gap: 6px;">
+            <a href="/api/audit/export?format=csv" class="audit-export-btn" target="_blank">Export CSV</a>
+            <a href="/api/audit/export?format=json" class="audit-export-btn" target="_blank">Export JSON</a>
+          </div>
+        </div>
+        <div id="audit-list-container" style="display: flex; flex-direction: column; gap: 8px;">
+        </div>
+      </div>
+    </aside>
+
+    <!-- Map Viewport -->
+    <section class="map-container">
+      <div id="leaflet-map"></div>
+
+      <!-- Drawing Active Banner -->
+      <div class="draw-mode-banner" id="draw-banner" style="display: none;">
+        <span>DRAW MODE: Click on the map to place polygon points. Click Finish to complete.</span>
+        <button id="finish-draw-btn">Finish Zone</button>
+        <button id="cancel-draw-btn">Cancel</button>
+      </div>
+
+      <!-- Zone Legend -->
+      <div class="zone-legend">
+        <div class="legend-item">
+          <div class="legend-color green"></div>
+          <span>Green Corridor</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color yellow"></div>
+          <span>Yellow Advisory</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color red"></div>
+          <span>Red Restricted</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color tempred"></div>
+          <span>Temp Red Zone</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Floating Inspection Panel -->
+    <aside class="right-panel" id="detail-panel" style="display: none;">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+          </svg>
+          TRACK INTELLIGENCE
+        </div>
+        <button class="close-btn" id="close-panel-btn" title="Close Panel">&times;</button>
+      </div>
+
+      <!-- IDENTITY SECTION -->
+      <div class="info-section">
+        <div class="section-tag">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          IDENTITY & REGISTRY
+        </div>
+        <div class="info-grid">
+          <div class="info-cell">
+            <span class="cell-label">Track ID</span>
+            <span class="cell-value" id="detail-track-id">TRACK-000</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Drone ID</span>
+            <span class="cell-value" id="detail-drone-id">UAV-000</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Registration</span>
+            <span class="cell-value" id="detail-registration">UNREGISTERED</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Drone Type</span>
+            <span class="cell-value" id="detail-drone-type">Multirotor</span>
+          </div>
+          <div class="info-cell full-width">
+            <span class="cell-label">Operator</span>
+            <span class="cell-value" id="detail-operator">Unknown Operator</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Classification</span>
+            <span class="cell-value" id="detail-classification">Unidentified</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Telemetry Source</span>
+            <span class="cell-value" id="detail-source">Simulated Python Sender</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- POSITION SECTION -->
+      <div class="info-section">
+        <div class="section-tag">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+          </svg>
+          POSITION & KINEMATICS
+        </div>
+        <div class="info-grid">
+          <div class="info-cell">
+            <span class="cell-label">Latitude</span>
+            <span class="cell-value" id="detail-lat">0.000000</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Longitude</span>
+            <span class="cell-value" id="detail-lng">0.000000</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Altitude</span>
+            <span class="cell-value" id="detail-alt">0 m</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Speed</span>
+            <span class="cell-value" id="detail-speed">0 m/s</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Heading</span>
+            <span class="cell-value" id="detail-heading">0°</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Timestamp</span>
+            <span class="cell-value" id="detail-timestamp">--:--:--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- GEOFENCE SECTION -->
+      <div class="info-section">
+        <div class="section-tag">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+          </svg>
+          GEOFENCE & ALTITUDE ENVELOPE
+        </div>
+        <div class="info-grid">
+          <div class="info-cell full-width">
+            <span class="cell-label">Current Zone</span>
+            <span class="cell-value" id="detail-zone-name">Unrestricted Airspace</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Zone Type</span>
+            <span class="cell-value" id="detail-zone-type">GREEN</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Altitude Envelope</span>
+            <span class="cell-value" id="detail-alt-envelope">0m - 120m</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Envelope Check</span>
+            <span class="cell-value" id="detail-envelope-check">INSIDE ENVELOPE</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Geofence Compliance</span>
+            <span class="cell-value" id="detail-geofence-status">COMPLIANT</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPERATIONAL STATE SECTION -->
+      <div class="info-section">
+        <div class="section-tag">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          CANONICAL STATE & ALERTS
+        </div>
+        <div class="info-grid">
+          <div class="info-cell full-width">
+            <span class="cell-label">Canonical Classification</span>
+            <span class="cell-value" id="detail-curr-class">AUTHORISED</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Registry Auth</span>
+            <span class="cell-value" id="detail-auth-status">ACTIVE</span>
+          </div>
+          <div class="info-cell">
+            <span class="cell-label">Link Status</span>
+            <span class="cell-value" id="detail-link-status">CONNECTED</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Operator Disposition Modal -->
+  <div class="modal-overlay" id="disposition-modal" style="display: none;">
+    <div class="modal-card">
+      <h3 class="modal-title" id="disp-modal-title">Apply Operator Disposition</h3>
+      
+      <div class="info-grid" style="margin-bottom: 8px;">
+        <div class="info-cell">
+          <span class="cell-label">Alert ID</span>
+          <span class="cell-value" id="disp-modal-alert-id">ALERT-1000</span>
+        </div>
+        <div class="info-cell">
+          <span class="cell-label">Target Drone</span>
+          <span class="cell-value" id="disp-modal-drone-id">UAV-001</span>
+        </div>
+        <div class="info-cell full-width">
+          <span class="cell-label">Suggested Operational Action</span>
+          <span class="cell-value" id="disp-modal-suggested-action" style="color: var(--accent-cyan);">--</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Selected Action</label>
+        <input type="text" id="disp-action-input" readonly style="font-weight: 700;">
+      </div>
+
+      <div class="form-group">
+        <label>Mandatory Reason Code *</label>
+        <select id="disp-reason-code-select">
+          <option value="">-- Select Mandatory Reason Code --</option>
+          <option value="CONFIRMED_VIOLATION">CONFIRMED_VIOLATION</option>
+          <option value="ESCALATED_TO_SUPERVISOR">ESCALATED_TO_SUPERVISOR</option>
+          <option value="AUTHORIZED_OPERATION">AUTHORIZED_OPERATION</option>
+          <option value="IDENTITY_VERIFIED">IDENTITY_VERIFIED</option>
+          <option value="LOST_LINK_RESOLVED">LOST_LINK_RESOLVED</option>
+          <option value="FALSE_POSITIVE">FALSE_POSITIVE</option>
+          <option value="DUPLICATE_ALERT">DUPLICATE_ALERT</option>
+          <option value="OTHER">OTHER</option>
+        </select>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" id="disp-modal-cancel-btn">Cancel</button>
+        <button class="btn-primary" id="disp-modal-submit-btn">Submit Disposition & Audit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Temporary Red Zone Modal -->
+  <div class="modal-overlay" id="temp-zone-modal" style="display: none;">
+    <div class="modal-card">
+      <h3 class="modal-title" style="color: var(--accent-red);">Create Temporary Red Zone</h3>
+      
+      <div class="form-group">
+        <label>Zone Name</label>
+        <input type="text" id="zone-name-input" value="TEMP-EMERGENCY-NOFLY-ZONE">
+      </div>
+
+      <div class="form-group">
+        <label>Duration (Seconds)</label>
+        <input type="number" id="zone-duration-input" value="60" min="10" max="3600">
+      </div>
+
+      <div class="form-group">
+        <label>Min Altitude (meters)</label>
+        <input type="number" id="zone-min-alt-input" value="0">
+      </div>
+
+      <div class="form-group">
+        <label>Max Altitude (meters)</label>
+        <input type="number" id="zone-max-alt-input" value="100">
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" id="modal-cancel-btn">Cancel</button>
+        <button class="btn-danger" id="modal-submit-btn">Activate Temporary Red Zone</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Custom App JS -->
+  <script src="/static/app.js"></script>
+</body>
+</html>
