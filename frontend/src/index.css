@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .bg-command-grid {
+    background-size: 24px 24px;
+    background-image: 
+      linear-gradient(to right, rgba(30, 41, 59, 0.3) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(30, 41, 59, 0.3) 1px, transparent 1px);
+  }
+
+  .pulse-crimson {
+    animation: pulseCrimson 1.5s infinite ease-in-out;
+  }
+
+  .pulse-amber {
+    animation: pulseAmber 2s infinite ease-in-out;
+  }
+
+  .pulse-cyan {
+    animation: pulseCyan 2s infinite ease-in-out;
+  }
+}
+
+@keyframes pulseCrimson {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 59, 0.7);
+    border-color: rgba(255, 0, 59, 1);
+  }
+  50% {
+    box-shadow: 0 0 16px 4px rgba(255, 0, 59, 0.4);
+    border-color: rgba(255, 0, 59, 0.5);
+  }
+}
+
+@keyframes pulseAmber {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 183, 3, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(255, 183, 3, 0.3);
+  }
+}
+
+@keyframes pulseCyan {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(0, 240, 255, 0.3);
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0b1324;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* MapLibre Canvas Fixes */
+.maplibregl-canvas {
+  outline: none;
+}
+.maplibregl-popup-content {
+  background: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  color: #f8fafc !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8) !important;
+}
+.maplibregl-popup-tip {
+  border-top-color: #0f172a !important;
+  border-bottom-color: #0f172a !important;
+}

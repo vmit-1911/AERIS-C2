@@ -1,0 +1,28 @@
+{
+  "authorized_uas": [
+    {
+      "uas_id": "UIN-IND-2026-POLICE-01",
+      "operator": "District Police Aerial Recon Unit",
+      "category": "LAW_ENFORCEMENT",
+      "valid_until": "2028-12-31"
+    },
+    {
+      "uas_id": "UIN-IND-2026-POLICE-02",
+      "operator": "District Police Patrol Drone",
+      "category": "LAW_ENFORCEMENT",
+      "valid_until": "2028-12-31"
+    },
+    {
+      "uas_id": "UIN-IND-2026-MED-882",
+      "operator": "AIIMS Emergency Blood Express",
+      "category": "MEDICAL_EMERGENCY",
+      "valid_until": "2027-06-30"
+    },
+    {
+      "uas_id": "UIN-IND-2026-DISASTER-04",
+      "operator": "State Disaster Management Authority",
+      "category": "GOVERNMENT",
+      "valid_until": "2027-12-31"
+    }
+  ]
+}

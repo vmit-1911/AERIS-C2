@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Remote ID Transmitter | Civil Police Airspace C2</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
+        body { background: #070b14; color: #e2e8f0; padding: 12px; min-height: 100vh; display: flex; flex-direction: column; }
+        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+        h1 { color: #00f0ff; font-size: 1.15rem; font-weight: 700; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        p.sub { color: #94a3b8; font-size: 0.8rem; margin-bottom: 12px; }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; background: #334155; color: #cbd5e1; }
+        .status-badge.online { background: #064e3b; color: #34d399; }
+        .status-badge.offline { background: #7f1d1d; color: #f87171; }
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-size: 0.7rem; font-weight: 600; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase; }
+        input, select { width: 100%; background: #1e293b; border: 1px solid #334155; color: #fff; padding: 8px 10px; border-radius: 6px; font-size: 0.85rem; font-family: monospace; }
+        button { width: 100%; padding: 12px; font-weight: 700; border-radius: 8px; border: none; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px; }
+        .btn-primary { background: #00f0ff; color: #070b14; }
+        .btn-sensor { background: #3b82f6; color: #fff; margin-bottom: 8px; }
+        .btn-danger { background: #ff003b; color: #fff; }
+        .log-box { background: #020617; border: 1px solid #1e293b; border-radius: 6px; padding: 8px; font-family: monospace; font-size: 0.7rem; color: #38bdf8; max-height: 120px; overflow-y: auto; }
+        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+        .preset-btn { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; padding: 8px; font-size: 0.7rem; font-weight: 600; border-radius: 6px; text-align: center; }
+        .preset-btn:hover { border-color: #00f0ff; color: #00f0ff; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Remote ID Transmitter</h1>
+        <p class="sub">3D Real-time Field Telemetry Node | Rule 24 Airspace</p>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span id="wsStatus" class="status-badge offline">CONNECTING...</span>
+            <span style="font-family:monospace; font-size:0.75rem; color:#64748b;" id="txCount">TX: 0 frames</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <label>Live Phone Sensors (GPS & Gyro)</label>
+        <button id="sensorBtn" class="btn-sensor" onclick="togglePhysicalSensors()">📡 CONNECT PHONE GPS & GYRO</button>
+
+        <label>Quick Telemetry Profiles</label>
+        <div class="preset-grid">
+            <button class="preset-btn" onclick="applyPreset('police')">👮 Police Patrol</button>
+            <button class="preset-btn" onclick="applyPreset('intruder')">🚨 TRZ Intruder</button>
+            <button class="preset-btn" onclick="applyPreset('altitude')">⚠️ High Altitude</button>
+            <button class="preset-btn" onclick="applyPreset('med')">🏥 Medical UAS</button>
+        </div>
+
+        <div class="form-group">
+            <label for="uasId">UAS Identifier (UIN)</label>
+            <input type="text" id="uasId" value="UIN-IND-2026-X89">
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="form-group">
+                <label for="lat">Latitude</label>
+                <input type="number" step="0.0001" id="lat" value="13.0268">
+            </div>
+            <div class="form-group">
+                <label for="lon">Longitude</label>
+                <input type="number" step="0.0001" id="lon" value="80.0168">
+            </div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="form-group">
+                <label for="alt">Altitude (AMSL m)</label>
+                <input type="number" id="alt" value="65.0">
+            </div>
+            <div class="form-group">
+                <label for="heading">Heading (&deg;)</label>
+                <input type="number" id="heading" value="120">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="speed">Ground Speed (m/s)</label>
+            <input type="number" id="speed" value="8.5">
+        </div>
+
+        <button id="toggleBtn" class="btn-primary" onclick="toggleBroadcast()">START 3D BROADCAST (1 Hz)</button>
+    </div>
+
+    <div class="card">
+        <label>Transmission Console Log</label>
+        <div id="logBox" class="log-box">Initialized Remote ID node. Select profile or toggle sensors...</div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isBroadcasting = false;
+        let isSensorActive = false;
+        let watchId = null;
+        let intervalId = null;
+        let txCounter = 0;
+
+        function getWsUrl() {
+            const host = window.location.hostname || 'localhost';
+            const port = window.location.port || '8000';
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            return `${protocol}//${host}:${port}/ws/drone`;
+        }
+
+        function connectWs() {
+            const url = getWsUrl();
+            log(`Connecting to WebSocket: ${url}`);
+            ws = new WebSocket(url);
+
+            ws.onopen = () => {
+                const status = document.getElementById('wsStatus');
+                status.className = 'status-badge online';
+                status.innerText = 'WEBSOCKET CONNECTED';
+                log('Connected to Police Airspace C2 Server.');
+            };
+
+            ws.onclose = () => {
+                const status = document.getElementById('wsStatus');
+                status.className = 'status-badge offline';
+                status.innerText = 'DISCONNECTED (RETRYING)';
+                log('WebSocket disconnected. Reconnecting in 3s...');
+                setTimeout(connectWs, 3000);
+            };
+
+            ws.onerror = (err) => {
+                log('WebSocket error encountered.');
+            };
+        }
+
+        function log(msg) {
+            const box = document.getElementById('logBox');
+            const time = new Date().toISOString().substring(11, 19);
+            box.innerHTML = `[${time}] ${msg}<br>` + box.innerHTML;
+        }
+
+        function togglePhysicalSensors() {
+            const btn = document.getElementById('sensorBtn');
+            if (!isSensorActive) {
+                if ('geolocation' in navigator) {
+                    watchId = navigator.geolocation.watchPosition(
+                        (pos) => {
+                            document.getElementById('lat').value = pos.coords.latitude.toFixed(5);
+                            document.getElementById('lon').value = pos.coords.longitude.toFixed(5);
+                            if (pos.coords.altitude) document.getElementById('alt').value = pos.coords.altitude.toFixed(1);
+                            if (pos.coords.speed) document.getElementById('speed').value = pos.coords.speed.toFixed(1);
+                            if (pos.coords.heading) document.getElementById('heading').value = pos.coords.heading.toFixed(0);
+                            log(`GPS Sensor Lock: (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`);
+                        },
+                        (err) => log(`GPS Error: ${err.message}`),
+                        { enableHighAccuracy: true }
+                    );
+
+                    if (window.DeviceOrientationEvent) {
+                        window.addEventListener('deviceorientation', (e) => {
+                            if (e.alpha !== null) {
+                                document.getElementById('heading').value = Math.round(360 - e.alpha);
+                            }
+                        });
+                    }
+
+                    isSensorActive = true;
+                    btn.innerText = '🟢 SENSORS ACTIVE (LIVE GPS & GYRO)';
+                    btn.style.background = '#10b981';
+                } else {
+                    alert('Geolocation is not supported by your browser.');
+                }
+            } else {
+                if (watchId) navigator.geolocation.clearWatch(watchId);
+                isSensorActive = false;
+                btn.innerText = '📡 CONNECT PHONE GPS & GYRO';
+                btn.style.background = '#3b82f6';
+                log('Disabled physical phone sensors.');
+            }
+        }
+
+        function applyPreset(type) {
+            if (type === 'police') {
+                document.getElementById('uasId').value = 'UIN-IND-2026-POLICE-01';
+                document.getElementById('lat').value = '13.0285';
+                document.getElementById('lon').value = '80.0180';
+                document.getElementById('alt').value = '45.0';
+                document.getElementById('speed').value = '6.0';
+            } else if (type === 'intruder') {
+                document.getElementById('uasId').value = 'UIN-UNAUTH-TARGET-99';
+                document.getElementById('lat').value = '13.0255';
+                document.getElementById('lon').value = '80.0145';
+                document.getElementById('alt').value = '85.0';
+                document.getElementById('speed').value = '14.2';
+            } else if (type === 'altitude') {
+                document.getElementById('uasId').value = 'UIN-IND-2026-POLICE-02';
+                document.getElementById('lat').value = '13.0290';
+                document.getElementById('lon').value = '80.0195';
+                document.getElementById('alt').value = '145.0';
+                document.getElementById('speed').value = '9.0';
+            } else if (type === 'med') {
+                document.getElementById('uasId').value = 'UIN-IND-2026-MED-882';
+                document.getElementById('lat').value = '13.0240';
+                document.getElementById('lon').value = '80.0210';
+                document.getElementById('alt').value = '55.0';
+                document.getElementById('speed').value = '12.0';
+            }
+            log(`Applied preset: ${type.toUpperCase()}`);
+        }
+
+        function sendFrame() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+            let lat = parseFloat(document.getElementById('lat').value);
+            let lon = parseFloat(document.getElementById('lon').value);
+            let speed = parseFloat(document.getElementById('speed').value);
+            let heading = parseFloat(document.getElementById('heading').value);
+            let alt = parseFloat(document.getElementById('alt').value);
+
+            if (!isSensorActive) {
+                // Simulate slight movement if sensors not active
+                const rad = (heading * Math.PI) / 180.0;
+                lat += (Math.cos(rad) * speed * 0.00001);
+                lon += (Math.sin(rad) * speed * 0.00001);
+                document.getElementById('lat').value = lat.toFixed(5);
+                document.getElementById('lon').value = lon.toFixed(5);
+            }
+
+            const payload = {
+                uas_id: document.getElementById('uasId').value,
+                timestamp: new Date().toISOString(),
+                lat: lat,
+                lon: lon,
+                alt_m: alt,
+                speed_mps: speed,
+                heading_deg: heading,
+                pitch_deg: 1.2,
+                roll_deg: -0.8,
+                pilot_lat: lat - 0.003,
+                pilot_lon: lon - 0.002,
+                rssi_dbm: -62,
+                transmission_state: "BROADCASTING"
+            };
+
+            ws.send(JSON.stringify(payload));
+            txCounter++;
+            document.getElementById('txCount').innerText = `TX: ${txCounter} frames`;
+            log(`TX -> ${payload.uas_id} @ (${lat.toFixed(4)}, ${lon.toFixed(4)}) Alt: ${alt}m`);
+        }
+
+        function toggleBroadcast() {
+            const btn = document.getElementById('toggleBtn');
+            if (!isBroadcasting) {
+                isBroadcasting = true;
+                btn.className = 'btn-danger';
+                btn.innerText = 'STOP 3D BROADCAST';
+                sendFrame();
+                intervalId = setInterval(sendFrame, 1000);
+            } else {
+                isBroadcasting = false;
+                btn.className = 'btn-primary';
+                btn.innerText = 'START 3D BROADCAST (1 Hz)';
+                clearInterval(intervalId);
+                log('Broadcast stopped.');
+            }
+        }
+
+        connectWs();
+    </script>
+</body>
+</html>
+
