@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AERIS C2 | Autonomous Drone Detection Platform</title>
+    <!-- Google Fonts & Lucide Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-dark: #070a13;
+            --bg-card: rgba(15, 23, 42, 0.75);
+            --bg-card-hover: rgba(30, 41, 59, 0.85);
+            --border-glow: rgba(0, 242, 254, 0.25);
+            --primary-cyan: #00f2fe;
+            --primary-blue: #4facfe;
+            --emerald: #10b981;
+            --amber: #f59e0b;
+            --rose: #f43f5e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(0, 242, 254, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(79, 172, 254, 0.05) 0%, transparent 40%);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top Navigation Header */
+        header {
+            height: 64px;
+            background: rgba(10, 15, 29, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-glow);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .radar-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,242,254,0.2) 0%, transparent 70%);
+            border: 1.5px solid var(--primary-cyan);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-cyan);
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+            animation: pulse-glow 3s infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 10px rgba(0, 242, 254, 0.2); }
+            100% { box-shadow: 0 0 22px rgba(0, 242, 254, 0.6); }
+        }
+
+        .logo-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #ffffff 0%, var(--primary-cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-badges {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .badge {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border-glow);
+            background: rgba(15, 23, 42, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: var(--text-muted);
+        }
+
+        .badge-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--emerald);
+            box-shadow: 0 0 8px var(--emerald);
+        }
+
+        /* Layout Grid */
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 320px minmax(0, 1fr);
+            gap: 1.5rem;
+            padding: 1.5rem 2rem;
+            max-width: 1920px;
+            margin: 0 auto;
+            width: 100%;
+            min-width: 0;
+        }
+
+        /* Sidebar Control Panel */
+        .sidebar {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: fit-content;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            min-width: 0;
+        }
+
+        .panel-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--primary-cyan);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 0.75rem;
+        }
+
+        /* Drag & Drop Upload Zone */
+        .dropzone {
+            border: 2px dashed rgba(0, 242, 254, 0.3);
+            background: rgba(0, 242, 254, 0.02);
+            border-radius: 12px;
+            padding: 2rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--primary-cyan);
+            background: rgba(0, 242, 254, 0.08);
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.15);
+        }
+
+        .dropzone-icon {
+            color: var(--primary-cyan);
+            width: 42px;
+            height: 42px;
+        }
+
+        .dropzone-text {
+            font-size: 0.875rem;
+            color: var(--text-main);
+            font-weight: 500;
+            word-break: break-word;
+        }
+
+        .dropzone-subtext {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 0.75rem 1.25rem;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.25s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-cyan) 0%, var(--primary-blue) 100%);
+            color: #050b14;
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 242, 254, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(30, 41, 59, 0.8);
+            color: var(--text-main);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(51, 65, 85, 0.9);
+            border-color: var(--primary-cyan);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* View Mode Segmented Control */
+        .view-mode-group {
+            display: flex;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 2px;
+            gap: 2px;
+        }
+
+        .view-mode-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.35rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            transition: all 0.2s ease;
+        }
+
+        .view-mode-btn.active {
+            background: rgba(0, 242, 254, 0.15);
+            color: var(--primary-cyan);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            font-weight: 600;
+        }
+
+        /* Form Controls */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--primary-cyan);
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider-round {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255, 255, 255, 0.15);
+            transition: .3s;
+            border-radius: 34px;
+        }
+
+        .slider-round:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider-round {
+            background-color: var(--primary-cyan);
+        }
+
+        input:checked + .slider-round:before {
+            transform: translateX(22px);
+        }
+
+        /* Main Workspace Container */
+        .workspace {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            min-width: 0;
+            width: 100%;
+        }
+
+        /* Analytics Metric Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1rem;
+            min-width: 0;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease;
+            min-width: 0;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(0, 242, 254, 0.3);
+        }
+
+        .metric-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            background: rgba(0, 242, 254, 0.1);
+            color: var(--primary-cyan);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .metric-data {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .metric-val {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .metric-lbl {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Video Stage Section */
+        .video-stage {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            min-width: 0;
+            width: 100%;
+        }
+
+        .stage-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1.25rem;
+            min-width: 0;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        /* Video Grid Display Modes */
+        .video-grid.mode-annotated-only .video-card:first-child {
+            display: none !important;
+        }
+        .video-grid.mode-annotated-only {
+            grid-template-columns: 1fr;
+        }
+
+        .video-grid.mode-stacked {
+            grid-template-columns: 1fr;
+        }
+
+        .video-card {
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            width: 100%;
+        }
+
+        .video-card-header {
+            background: rgba(15, 23, 42, 0.9);
+            padding: 0.6rem 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            height: auto;
+            max-height: 520px;
+            object-fit: contain;
+            background: #000;
+            display: block;
+        }
+
+        /* Progress Modal & Overlay */
+        .progress-container {
+            display: none;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--primary-cyan);
+            border-radius: 12px;
+            padding: 1.5rem;
+            flex-direction: column;
+            gap: 1rem;
+            box-shadow: 0 0 30px rgba(0, 242, 254, 0.2);
+            animation: fadeIn 0.3s ease;
+            min-width: 0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary-cyan) 0%, var(--emerald) 100%);
+            transition: width 0.2s ease;
+            box-shadow: 0 0 12px var(--primary-cyan);
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--primary-cyan);
+        }
+
+        /* Detection Timeline Event Log */
+        .timeline-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-width: 0;
+        }
+
+        .timeline-list {
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-cyan) transparent;
+        }
+
+        .timeline-item {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            min-width: 140px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            flex-shrink: 0;
+        }
+
+        .timeline-item:hover {
+            border-color: var(--primary-cyan);
+            background: rgba(0, 242, 254, 0.1);
+            transform: scale(1.03);
+        }
+
+        .timeline-time {
+            color: var(--primary-cyan);
+            font-weight: 700;
+        }
+
+        .timeline-meta {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .export-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 1200px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Header -->
+    <header>
+        <div class="logo-group">
+            <div class="radar-icon">
+                <i data-lucide="crosshair"></i>
+            </div>
+            <div class="logo-title">AERIS C2 // DRONE DETECTION</div>
+        </div>
+        <div class="header-badges">
+            <div class="badge">
+                <div class="badge-status-dot"></div>
+                YOLOv8x MODEL LOADED (best.pt)
+            </div>
+            <div class="badge">
+                <i data-lucide="cpu" style="width:14px;"></i>
+                NEURAL ENGINE ACTIVE
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Grid -->
+    <main>
+        <!-- Sidebar Controls -->
+        <aside class="sidebar">
+            <div class="panel-title">
+                <i data-lucide="sliders" style="width:18px;"></i>
+                Detection Configuration
+            </div>
+
+            <!-- Upload Dropzone -->
+            <div class="dropzone" id="dropzone">
+                <i data-lucide="upload-cloud" class="dropzone-icon"></i>
+                <div class="dropzone-text" id="dropzone-text">Click or Drag & Drop Video</div>
+                <div class="dropzone-subtext">MP4, AVI, MOV, MKV, WebM</div>
+                <input type="file" id="file-input" accept="video/*" style="display: none;">
+            </div>
+
+            <!-- Quick Sample Video Loader -->
+            <button class="btn btn-secondary" id="btn-sample">
+                <i data-lucide="film" style="width:18px;"></i>
+                Load Sample Video
+            </button>
+
+            <!-- Confidence Slider -->
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Confidence Threshold</span>
+                    <span id="conf-val" style="color:var(--primary-cyan); font-weight:600;">0.40</span>
+                </div>
+                <input type="range" id="conf-slider" class="slider" min="0.10" max="0.95" step="0.05" value="0.40">
+            </div>
+
+            <!-- IoU Slider -->
+            <div class="control-group">
+                <div class="control-label">
+                    <span>IoU Threshold</span>
+                    <span id="iou-val" style="color:var(--primary-cyan); font-weight:600;">0.45</span>
+                </div>
+                <input type="range" id="iou-slider" class="slider" min="0.10" max="0.95" step="0.05" value="0.45">
+            </div>
+
+            <!-- Tracking Toggle -->
+            <div class="toggle-group">
+                <span>Multi-Target Object Tracking</span>
+                <label class="switch">
+                    <input type="checkbox" id="track-toggle" checked>
+                    <span class="slider-round"></span>
+                </label>
+            </div>
+
+            <!-- Motion Trails Toggle -->
+            <div class="toggle-group">
+                <span>Render Trajectory Trails</span>
+                <label class="switch">
+                    <input type="checkbox" id="trail-toggle" checked>
+                    <span class="slider-round"></span>
+                </label>
+            </div>
+
+            <!-- Start Process Button -->
+            <button class="btn btn-primary" id="btn-process" disabled>
+                <i data-lucide="play" style="width:18px;"></i>
+                Run Drone Detection
+            </button>
+        </aside>
+
+        <!-- Main Workspace -->
+        <section class="workspace">
+            <!-- Processing Progress Panel -->
+            <div class="progress-container" id="progress-card">
+                <div class="progress-info">
+                    <span id="progress-status-text"><i data-lucide="loader" style="width:16px;" class="spin"></i> Processing Video...</span>
+                    <span id="progress-percent-text">0.0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progress-bar"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">
+                    <span id="progress-frame-text">Frames: 0 / 0</span>
+                    <span id="progress-fps-text">FPS: 0.0</span>
+                    <span id="progress-detections-text">Drones so far: 0</span>
+                </div>
+            </div>
+
+            <!-- Metrics Cards -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-icon">
+                        <i data-lucide="target"></i>
+                    </div>
+                    <div class="metric-data">
+                        <div class="metric-val" id="metric-total-tracks">0</div>
+                        <div class="metric-lbl">Unique Drones Tracked</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon" style="background:rgba(245, 158, 11, 0.1); color:var(--amber);">
+                        <i data-lucide="shield-alert"></i>
+                    </div>
+                    <div class="metric-data">
+                        <div class="metric-val" id="metric-max-drones">0</div>
+                        <div class="metric-lbl">Peak Concurrent Drones</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon" style="background:rgba(16, 185, 129, 0.1); color:var(--emerald);">
+                        <i data-lucide="award"></i>
+                    </div>
+                    <div class="metric-data">
+                        <div class="metric-val" id="metric-avg-conf">0%</div>
+                        <div class="metric-lbl">Avg Confidence</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon" style="background:rgba(79, 172, 254, 0.1); color:var(--primary-blue);">
+                        <i data-lucide="clock"></i>
+                    </div>
+                    <div class="metric-data">
+                        <div class="metric-val" id="metric-proc-time">0.0s</div>
+                        <div class="metric-lbl">Processing Time</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Player Stage -->
+            <div class="video-stage">
+                <div class="stage-header">
+                    <div class="panel-title">
+                        <i data-lucide="video" style="width:18px;"></i>
+                        Surveillance Video Stream Player
+                    </div>
+
+                    <!-- View Mode Controls -->
+                    <div class="view-mode-group">
+                        <button class="view-mode-btn active" id="btn-mode-dual">
+                            <i data-lucide="columns" style="width:14px;"></i> Dual View
+                        </button>
+                        <button class="view-mode-btn" id="btn-mode-annotated">
+                            <i data-lucide="maximize-2" style="width:14px;"></i> Annotated Focus
+                        </button>
+                        <button class="view-mode-btn" id="btn-mode-stacked">
+                            <i data-lucide="rows" style="width:14px;"></i> Stacked
+                        </button>
+                    </div>
+
+                    <div class="export-actions" id="export-group" style="display:none;">
+                        <a id="btn-dl-video" class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.75rem;" download>
+                            <i data-lucide="download-cloud" style="width:14px;"></i> Download MP4
+                        </a>
+                        <a id="btn-dl-csv" class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.75rem;">
+                            <i data-lucide="file-spreadsheet" style="width:14px;"></i> CSV Report
+                        </a>
+                        <a id="btn-dl-json" class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.75rem;">
+                            <i data-lucide="file-json" style="width:14px;"></i> JSON Telemetry
+                        </a>
+                    </div>
+                </div>
+
+                <div class="video-grid" id="video-grid">
+                    <div class="video-card">
+                        <div class="video-card-header">
+                            <span>ORIGINAL INPUT VIDEO</span>
+                            <span id="orig-badge" class="badge" style="padding:0.15rem 0.5rem; font-size:0.7rem;">READY</span>
+                        </div>
+                        <div class="video-wrapper">
+                            <video id="video-orig" controls></video>
+                        </div>
+                    </div>
+
+                    <div class="video-card">
+                        <div class="video-card-header">
+                            <span style="color:var(--primary-cyan);">ANNOTATED DRONE DETECTION</span>
+                            <span id="proc-badge" class="badge" style="padding:0.15rem 0.5rem; font-size:0.7rem; border-color:var(--primary-cyan); color:var(--primary-cyan);">YOLO OUTPUT</span>
+                        </div>
+                        <div class="video-wrapper">
+                            <video id="video-proc" controls></video>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detection Events Timeline -->
+            <div class="timeline-card" id="timeline-card" style="display:none;">
+                <div class="panel-title">
+                    <i data-lucide="activity" style="width:18px;"></i>
+                    Interactive Drone Detection Events Timeline (Click to Seek)
+                </div>
+                <div class="timeline-list" id="timeline-list">
+                    <!-- Dynamic timeline cards populated via JS -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        let currentTaskId = null;
+        let pollInterval = null;
+
+        // DOM elements
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const dropzoneText = document.getElementById('dropzone-text');
+        const btnSample = document.getElementById('btn-sample');
+        const btnProcess = document.getElementById('btn-process');
+
+        const confSlider = document.getElementById('conf-slider');
+        const confVal = document.getElementById('conf-val');
+        const iouSlider = document.getElementById('iou-slider');
+        const iouVal = document.getElementById('iou-val');
+        const trackToggle = document.getElementById('track-toggle');
+        const trailToggle = document.getElementById('trail-toggle');
+
+        const progressCard = document.getElementById('progress-card');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercentText = document.getElementById('progress-percent-text');
+        const progressFrameText = document.getElementById('progress-frame-text');
+        const progressFpsText = document.getElementById('progress-fps-text');
+        const progressDetectionsText = document.getElementById('progress-detections-text');
+
+        const videoOrig = document.getElementById('video-orig');
+        const videoProc = document.getElementById('video-proc');
+        const videoGrid = document.getElementById('video-grid');
+        const exportGroup = document.getElementById('export-group');
+        const timelineCard = document.getElementById('timeline-card');
+        const timelineList = document.getElementById('timeline-list');
+
+        // View Mode Switcher Handlers
+        const btnModeDual = document.getElementById('btn-mode-dual');
+        const btnModeAnnotated = document.getElementById('btn-mode-annotated');
+        const btnModeStacked = document.getElementById('btn-mode-stacked');
+
+        btnModeDual.addEventListener('click', () => {
+            videoGrid.className = 'video-grid';
+            btnModeDual.classList.add('active');
+            btnModeAnnotated.classList.remove('active');
+            btnModeStacked.classList.remove('active');
+        });
+
+        btnModeAnnotated.addEventListener('click', () => {
+            videoGrid.className = 'video-grid mode-annotated-only';
+            btnModeAnnotated.classList.add('active');
+            btnModeDual.classList.remove('active');
+            btnModeStacked.classList.remove('active');
+        });
+
+        btnModeStacked.addEventListener('click', () => {
+            videoGrid.className = 'video-grid mode-stacked';
+            btnModeStacked.classList.add('active');
+            btnModeDual.classList.remove('active');
+            btnModeAnnotated.classList.remove('active');
+        });
+
+        // Sync video playback controls
+        videoOrig.addEventListener('play', () => { if(videoProc.src) videoProc.play(); });
+        videoOrig.addEventListener('pause', () => { if(videoProc.src) videoProc.pause(); });
+        videoOrig.addEventListener('seeking', () => { if(videoProc.src) videoProc.currentTime = videoOrig.currentTime; });
+
+        // Sliders input handlers
+        confSlider.addEventListener('input', (e) => confVal.textContent = parseFloat(e.target.value).toFixed(2));
+        iouSlider.addEventListener('input', (e) => iouVal.textContent = parseFloat(e.target.value).toFixed(2));
+
+        // Drag and drop handlers
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleUpload(fileInput.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) handleUpload(fileInput.files[0]);
+        });
+
+        btnSample.addEventListener('click', async () => {
+            try {
+                dropzoneText.textContent = "Loading Sample Video...";
+                const resp = await fetch('/api/sample', { method: 'POST' });
+                const data = await resp.json();
+                if (resp.ok) {
+                    currentTaskId = data.task_id;
+                    dropzoneText.textContent = `Selected: ${data.filename}`;
+                    btnProcess.disabled = false;
+                    videoOrig.src = `/api/video/${currentTaskId}/original`;
+                } else {
+                    alert(data.detail || "Failed to load sample video.");
+                }
+            } catch (err) {
+                alert("Error loading sample video: " + err.message);
+            }
+        });
+
+        async function handleUpload(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            dropzoneText.textContent = `Uploading ${file.name}...`;
+
+            try {
+                const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await resp.json();
+                if (resp.ok) {
+                    currentTaskId = data.task_id;
+                    dropzoneText.textContent = `Uploaded: ${data.filename}`;
+                    btnProcess.disabled = false;
+                    videoOrig.src = `/api/video/${currentTaskId}/original`;
+                } else {
+                    alert(data.detail || "Upload failed.");
+                }
+            } catch (err) {
+                alert("Error uploading video: " + err.message);
+            }
+        }
+
+        btnProcess.addEventListener('click', async () => {
+            if (!currentTaskId) return;
+
+            const formData = new FormData();
+            formData.append('conf_threshold', confSlider.value);
+            formData.append('iou_threshold', iouSlider.value);
+            formData.append('enable_tracking', trackToggle.checked);
+            formData.append('draw_trails', trailToggle.checked);
+
+            try {
+                const resp = await fetch(`/api/process/${currentTaskId}`, { method: 'POST', body: formData });
+                const data = await resp.json();
+                if (resp.ok) {
+                    progressCard.style.display = 'flex';
+                    btnProcess.disabled = true;
+                    startPolling();
+                } else {
+                    alert(data.detail || "Failed to start processing.");
+                }
+            } catch (err) {
+                alert("Error starting detection process: " + err.message);
+            }
+        });
+
+        function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(async () => {
+                try {
+                    const resp = await fetch(`/api/status/${currentTaskId}`);
+                    const data = await resp.json();
+
+                    if (data.status === 'processing' && data.progress) {
+                        const p = data.progress;
+                        progressBar.style.width = `${p.percent}%`;
+                        progressPercentText.textContent = `${p.percent}%`;
+                        progressFrameText.textContent = `Frames: ${p.frame_index} / ${p.total_frames}`;
+                        progressFpsText.textContent = `FPS: ${p.current_fps}`;
+                        progressDetectionsText.textContent = `Drones so far: ${p.total_detections_so_far}`;
+                    } else if (data.status === 'completed') {
+                        clearInterval(pollInterval);
+                        progressBar.style.width = '100%';
+                        progressPercentText.textContent = '100%';
+                        setTimeout(() => progressCard.style.display = 'none', 1000);
+                        btnProcess.disabled = false;
+
+                        // Load processed video
+                        videoProc.src = `/api/video/${currentTaskId}/processed?t=${Date.now()}`;
+                        
+                        // Populate telemetry analytics
+                        renderTelemetry(data.telemetry);
+                    } else if (data.status === 'error') {
+                        clearInterval(pollInterval);
+                        progressCard.style.display = 'none';
+                        btnProcess.disabled = false;
+                        alert("Error during detection: " + (data.error_msg || "Unknown error"));
+                    }
+                } catch (err) {
+                    console.error("Polling error:", err);
+                }
+            }, 500);
+        }
+
+        function renderTelemetry(t) {
+            if (!t) return;
+
+            document.getElementById('metric-total-tracks').textContent = t.unique_tracks_count || t.total_detections;
+            document.getElementById('metric-max-drones').textContent = t.max_concurrent_drones;
+            document.getElementById('metric-avg-conf').textContent = `${Math.round(t.avg_confidence * 100)}%`;
+            document.getElementById('metric-proc-time').textContent = `${t.processing_time_sec}s`;
+
+            // Export buttons setup
+            exportGroup.style.display = 'flex';
+            document.getElementById('btn-dl-video').href = `/api/video/${currentTaskId}/processed`;
+            document.getElementById('btn-dl-csv').href = `/api/export/${currentTaskId}/csv`;
+            document.getElementById('btn-dl-json').href = `/api/export/${currentTaskId}/json`;
+
+            // Render Timeline
+            if (t.detection_events && t.detection_events.length > 0) {
+                timelineCard.style.display = 'flex';
+                timelineList.innerHTML = '';
+                t.detection_events.forEach(evt => {
+                    const item = document.createElement('div');
+                    item.className = 'timeline-item';
+                    const mins = Math.floor(evt.timestamp_sec / 60);
+                    const secs = Math.floor(evt.timestamp_sec % 60);
+                    const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                    item.innerHTML = `
+                        <div class="timeline-time"><i data-lucide="play-circle" style="width:12px; display:inline;"></i> ${timeStr}</div>
+                        <div class="timeline-meta">${evt.drone_count} Drone(s) (${Math.round(evt.max_confidence * 100)}%)</div>
+                    `;
+                    item.addEventListener('click', () => {
+                        videoOrig.currentTime = evt.timestamp_sec;
+                        videoProc.currentTime = evt.timestamp_sec;
+                        videoOrig.play();
+                        videoProc.play();
+                    });
+                    timelineList.appendChild(item);
+                });
+                lucide.createIcons();
+            } else {
+                timelineCard.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
