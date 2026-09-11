@@ -11,12 +11,16 @@ import {
   WifiOff, 
   Clock, 
   Maximize2, 
+  Minimize2, 
   Compass, 
   Power, 
   Sliders, 
   Terminal, 
   AlertOctagon, 
-  RotateCw 
+  RotateCw, 
+  Eye, 
+  EyeOff, 
+  Info 
 } from 'lucide-react';
 
 import AttitudeIndicator from './components/AttitudeIndicator';
@@ -27,8 +31,8 @@ import FlightControls from './components/FlightControls';
 import RemoteIdInspector from './components/RemoteIdInspector';
 import SurveillanceConsoleModal from './components/SurveillanceConsoleModal';
 
-// Web Audio API Synthesizer for Tactical Cockpit SFX
-class SoundEffects {
+// Web Audio API Synthesizer for Aerospace Cockpit Sound Effects
+class CockpitSoundSystem {
   constructor() {
     this.ctx = null;
     this.enabled = true;
@@ -41,7 +45,7 @@ class SoundEffects {
     }
   }
 
-  playBeep(freq = 880, duration = 0.08, type = 'sine') {
+  playBeep(freq = 880, duration = 0.08, type = 'sine', volume = 0.08) {
     if (!this.enabled) return;
     try {
       this.init();
@@ -52,32 +56,36 @@ class SoundEffects {
       const gain = this.ctx.createGain();
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-      gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+      gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
       osc.start();
       osc.stop(this.ctx.currentTime + duration);
     } catch (e) {
-      // Audio might be blocked by browser policy until interaction
+      // Handled silently
     }
   }
 
-  playAlarm() {
+  playCeilingAlarm() {
     if (!this.enabled) return;
-    this.playBeep(1200, 0.15, 'sawtooth');
-    setTimeout(() => this.playBeep(900, 0.15, 'sawtooth'), 120);
+    this.playBeep(1200, 0.12, 'sawtooth', 0.12);
+    setTimeout(() => this.playBeep(850, 0.12, 'sawtooth', 0.12), 100);
   }
 
   playClick() {
-    this.playBeep(1800, 0.03, 'triangle');
+    this.playBeep(2200, 0.025, 'triangle', 0.05);
+  }
+
+  playModeSwitch() {
+    this.playBeep(1400, 0.04, 'sine', 0.06);
+    setTimeout(() => this.playBeep(1760, 0.04, 'sine', 0.06), 40);
   }
 }
 
-const sfx = new SoundEffects();
+const sfx = new CockpitSoundSystem();
 
 export default function App() {
-  // WebSocket and Telemetry State
   const [wsUrl, setWsUrl] = useState(`ws://${window.location.hostname || 'localhost'}:8765`);
   const [connected, setConnected] = useState(false);
   const [telemetry, setTelemetry] = useState(null);
@@ -85,21 +93,34 @@ export default function App() {
   const [latencyMs, setLatencyMs] = useState(3);
   const [regulatoryCeiling, setRegulatoryCeiling] = useState(120.0);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [nightVision, setNightVision] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSurveillanceModalOpen, setIsSurveillanceModalOpen] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date().toUTCString());
+  const [currentTime, setCurrentTime] = useState(new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC');
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const pingIntervalRef = useRef(null);
   const lastAlarmTimeRef = useRef(0);
 
-  // Update Mission Clock
+  // Mission Clock
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC');
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fullscreen toggle
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
 
   // Connect WebSocket
   const connectWebSocket = useCallback(() => {
@@ -114,10 +135,8 @@ export default function App() {
       ws.onopen = () => {
         setConnected(true);
         sfx.playClick();
-        // Register client role as GCS
         ws.send(JSON.stringify({ type: 'identify', role: 'gcs' }));
 
-        // Ping every 2 seconds for latency
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -135,11 +154,11 @@ export default function App() {
             setTelemetry(data);
             setPacketCount(prev => prev + 1);
 
-            // Audio Alert if Ceiling Breached
+            // Ceiling Breach Warning Sound
             if (data.alt_geo_m > regulatoryCeiling) {
               const now = Date.now();
-              if (now - lastAlarmTimeRef.current > 3000) {
-                sfx.playAlarm();
+              if (now - lastAlarmTimeRef.current > 3200) {
+                sfx.playCeilingAlarm();
                 lastAlarmTimeRef.current = now;
               }
             }
@@ -147,7 +166,7 @@ export default function App() {
             const rtt = Math.round(performance.now() - payload.client_ts);
             setLatencyMs(Math.max(1, rtt));
           } else if (payload.type === 'scenario_feedback') {
-            sfx.playClick();
+            sfx.playModeSwitch();
           }
         } catch (err) {
           console.error('Error parsing WS frame:', err);
@@ -157,15 +176,11 @@ export default function App() {
       ws.onclose = () => {
         setConnected(false);
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
-        // Automatic reconnection attempt
         reconnectTimeoutRef.current = setTimeout(connectWebSocket, 2000);
       };
 
-      ws.onerror = () => {
-        setConnected(false);
-      };
+      ws.onerror = () => setConnected(false);
     } catch (e) {
-      console.error('Failed to create WebSocket:', e);
       reconnectTimeoutRef.current = setTimeout(connectWebSocket, 2000);
     }
   }, [wsUrl, regulatoryCeiling]);
@@ -179,7 +194,7 @@ export default function App() {
     };
   }, [connectWebSocket]);
 
-  // Command Send Handlers
+  // Command Dispatchers
   const sendControl = useCallback((controlData) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
@@ -196,7 +211,7 @@ export default function App() {
         type: 'set_scenario',
         scenario: scenarioKey
       }));
-      sfx.playClick();
+      sfx.playModeSwitch();
     }
   }, []);
 
@@ -207,7 +222,7 @@ export default function App() {
     if (next) sfx.playClick();
   };
 
-  // Fallback telemetry defaults when connecting
+  // Fallback defaults
   const currentAlt = telemetry?.alt_geo_m || 60.0;
   const currentSpeed = telemetry?.speed_horizontal_mps || 12.5;
   const currentHeading = telemetry?.heading_deg || 45.0;
@@ -219,86 +234,111 @@ export default function App() {
   const flightMode = telemetry?.flight_mode || 'AUTO_PATROL';
 
   return (
-    <div className="min-h-screen bg-tactical-950 text-slate-100 flex flex-col justify-between font-mono select-none bg-grid-pattern overflow-x-hidden">
+    <div className={`min-h-screen bg-tactical-950 text-slate-100 flex flex-col justify-between select-none bg-grid-pattern overflow-x-hidden ${
+      nightVision ? 'hue-rotate-90 contrast-125' : ''
+    }`}>
+      {/* Scanline CRT overlay */}
+      <div className="fixed inset-0 scanline-overlay pointer-events-none z-30 opacity-40"></div>
+
       {/* ---------------------------------------------------- */}
-      {/* TOP COMMAND HEADER                                   */}
+      {/* 1. TOP COMMAND HEADER                                */}
       {/* ---------------------------------------------------- */}
-      <header className="sticky top-0 z-40 bg-tactical-900/95 border-b border-tactical-700/90 px-4 py-2.5 backdrop-blur-md shadow-2xl flex flex-wrap items-center justify-between gap-2">
-        {/* Callsign & Mission Brand */}
-        <div className="flex items-center space-x-3">
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-tactical-800 border border-cyber-cyan/40 text-cyber-cyan shadow-cyan-glow">
-            <Radio size={18} className="animate-pulse" />
+      <header className="sticky top-0 z-40 bg-tactical-900/95 border-b border-tactical-700/80 px-4 py-2.5 backdrop-blur-xl shadow-2xl flex flex-wrap items-center justify-between gap-2.5">
+        {/* Callsign & Airframe Brand */}
+        <div className="flex items-center space-x-3.5">
+          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-tactical-850 border border-cyber-cyan/50 text-cyber-cyan shadow-cyan-glow">
+            <Radio size={20} className="animate-pulse" />
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <h1 className="text-sm font-black tracking-widest text-slate-100 uppercase font-orbitron">
+            <div className="flex items-center space-x-2.5">
+              <h1 className="text-sm md:text-base font-black tracking-widest text-slate-100 uppercase font-orbitron">
                 VIRTUAL DRONE GCS <span className="text-cyber-cyan font-normal">// LAPTOP 1 TRANSMITTER</span>
               </h1>
-              <span className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] bg-cyber-cyan/15 text-cyber-cyan border border-cyber-cyan/40 rounded font-bold">
-                ASTM F3411-22a COMPLIANT
+              <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-bold bg-cyber-cyan/15 text-cyber-cyan border border-cyber-cyan/40 rounded-md font-orbitron shadow-cyan-glow">
+                ASTM F3411-22a
               </span>
             </div>
-            <div className="text-[11px] text-slate-400 flex items-center space-x-2">
+            <div className="text-[11px] text-slate-400 font-mono flex items-center space-x-2">
               <span>UAS ID: <strong className="text-cyber-cyan font-bold">{uasId}</strong></span>
               <span>·</span>
-              <span className="text-slate-400">MISSION CLOCK: {currentTime}</span>
+              <span className="text-slate-400 font-medium">MISSION TIME: <strong className="text-slate-200">{currentTime}</strong></span>
             </div>
           </div>
         </div>
 
-        {/* Global Action & Link Status Widgets */}
-        <div className="flex items-center space-x-2 sm:space-x-3">
-          {/* Sound Toggle */}
+        {/* Global Control & Diagnostics Widgets */}
+        <div className="flex items-center space-x-2 sm:space-x-2.5">
+          {/* Audio SFX Toggle */}
           <button
             onClick={toggleSound}
-            className={`p-1.5 rounded border transition-all ${
-              soundEnabled ? 'bg-tactical-800 border-tactical-600 text-cyber-cyan' : 'bg-tactical-900 border-tactical-800 text-slate-600'
+            className={`p-2 rounded-lg border transition-all ${
+              soundEnabled ? 'bg-tactical-800 border-tactical-600 text-cyber-cyan shadow-cyan-glow' : 'bg-tactical-950 border-tactical-800 text-slate-500'
             }`}
             title="Toggle Cockpit Audio SFX"
           >
             {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
 
-          {/* Surveillance Radar Listener Simulator Modal Button */}
+          {/* Night Vision Mode Toggle */}
+          <button
+            onClick={() => setNightVision(!nightVision)}
+            className={`p-2 rounded-lg border transition-all ${
+              nightVision ? 'bg-cyber-green/20 border-cyber-green text-cyber-green shadow-green-glow' : 'bg-tactical-800 border-tactical-700 text-slate-400 hover:text-white'
+            }`}
+            title="Toggle Night / Thermal Vision Shader"
+          >
+            {nightVision ? <Eye size={16} /> : <EyeOff size={16} />}
+          </button>
+
+          {/* Fullscreen Mode */}
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 rounded-lg border border-tactical-700 bg-tactical-800 hover:bg-tactical-750 text-slate-300 hover:text-white transition-all hidden md:block"
+            title="Toggle Fullscreen"
+          >
+            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+
+          {/* Surveillance Radar Listener Modal Trigger */}
           <button
             onClick={() => setIsSurveillanceModalOpen(true)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-cyber-cyan/10 hover:bg-cyber-cyan/20 border border-cyber-cyan/40 text-cyber-cyan font-bold text-xs transition-all shadow-sm active:scale-95 font-orbitron"
+            className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-cyber-cyan/15 hover:bg-cyber-cyan/25 border border-cyber-cyan/50 text-cyber-cyan font-bold text-xs transition-all shadow-cyan-glow active:scale-95 font-orbitron"
           >
-            <Radar size={15} className="animate-spin" style={{ animationDuration: '8s' }} />
+            <Radar size={16} className="animate-spin" style={{ animationDuration: '6s' }} />
             <span>SURVEILLANCE RADAR LIVE</span>
           </button>
 
           {/* WebSocket Server Connection Badge */}
-          <div className="flex items-center space-x-2 bg-tactical-900 border border-tactical-700 px-2.5 py-1 rounded-lg">
-            <div className={`w-2 h-2 rounded-full ${connected ? 'bg-cyber-green animate-pulse' : 'bg-cyber-red'}`}></div>
+          <div className="flex items-center space-x-2 bg-tactical-950 border border-tactical-750 px-3 py-1.5 rounded-lg font-mono">
+            <div className={`w-2.5 h-2.5 rounded-full ${connected ? 'bg-cyber-green animate-pulse shadow-green-glow' : 'bg-cyber-red shadow-red-glow'}`}></div>
             <div className="text-[11px]">
-              <span className={connected ? 'text-cyber-green font-bold' : 'text-cyber-red font-bold'}>
-                {connected ? 'WS LINKED' : 'OFFLINE'}
+              <span className={connected ? 'text-cyber-green font-bold font-orbitron' : 'text-cyber-red font-bold font-orbitron'}>
+                {connected ? 'WS ONLINE' : 'DISCONNECTED'}
               </span>
-              <span className="text-slate-500 ml-1.5 hidden md:inline">({latencyMs}ms)</span>
+              <span className="text-slate-400 ml-1.5 hidden md:inline">({latencyMs}ms)</span>
             </div>
           </div>
 
-          {/* Transmission Mode Indicator */}
-          <div className={`px-2.5 py-1 rounded-lg border text-xs font-bold font-orbitron flex items-center space-x-1.5 ${
+          {/* Transmission State Pill */}
+          <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold font-orbitron flex items-center space-x-2 ${
             transmissionState === 'BROADCASTING'
               ? 'bg-cyber-green/15 border-cyber-green text-cyber-green shadow-green-glow'
               : transmissionState === 'SILENT_DARK'
-              ? 'bg-purple-950/60 border-cyber-purple text-cyber-purple'
-              : 'bg-amber-950/60 border-cyber-amber text-cyber-amber shadow-amber-glow'
+              ? 'bg-purple-950/80 border-cyber-purple text-cyber-purple shadow-purple-glow'
+              : 'bg-amber-950/80 border-cyber-amber text-cyber-amber shadow-amber-glow'
           }`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+            <span className="w-2 h-2 rounded-full bg-current"></span>
             <span>{transmissionState}</span>
           </div>
         </div>
       </header>
 
       {/* ---------------------------------------------------- */}
-      {/* MAIN COCKPIT DASHBOARD GRID                          */}
+      {/* 2. MAIN COCKPIT DASHBOARD GRID                       */}
       {/* ---------------------------------------------------- */}
-      <main className="flex-1 p-3 grid grid-cols-1 lg:grid-cols-12 gap-3 max-w-[1920px] mx-auto w-full">
+      <main className="flex-1 p-3.5 grid grid-cols-1 lg:grid-cols-12 gap-3.5 max-w-[1920px] mx-auto w-full">
         {/* COLUMN 1: 3D ATTITUDE DIRECTOR (ADI) & PILOT CONTROLS (4 COLS) */}
-        <div className="lg:col-span-4 flex flex-col space-y-3">
+        <div className="lg:col-span-4 flex flex-col space-y-3.5">
           <AttitudeIndicator
             pitch={currentPitch}
             roll={currentRoll}
@@ -315,7 +355,7 @@ export default function App() {
         </div>
 
         {/* COLUMN 2: PRIMARY FLIGHT DISPLAY (PFD) HUD & SCENARIO MATRIX (4 COLS) */}
-        <div className="lg:col-span-4 flex flex-col space-y-3">
+        <div className="lg:col-span-4 flex flex-col space-y-3.5">
           <FlightHUD
             telemetry={telemetry}
             regulatoryCeiling={regulatoryCeiling}
@@ -329,8 +369,8 @@ export default function App() {
           />
         </div>
 
-        {/* COLUMN 3: TACTICAL RADAR MAP & ASTM PROTOCOL INSPECTOR (4 COLS) */}
-        <div className="lg:col-span-4 flex flex-col space-y-3">
+        {/* COLUMN 3: TACTICAL RADAR GEO-MAP & ASTM INSPECTOR (4 COLS) */}
+        <div className="lg:col-span-4 flex flex-col space-y-3.5">
           <TacticalMap
             telemetry={telemetry}
             onSendWaypoint={(lat, lon) => sendControl({ lat, lon })}
@@ -344,19 +384,19 @@ export default function App() {
       </main>
 
       {/* ---------------------------------------------------- */}
-      {/* FOOTER AVIONICS STATUS BAR                           */}
+      {/* 3. FOOTER AVIONICS STATUS BAR                        */}
       {/* ---------------------------------------------------- */}
-      <footer className="bg-tactical-950 border-t border-tactical-800 px-4 py-1.5 text-[11px] text-slate-500 flex flex-wrap items-center justify-between">
+      <footer className="bg-tactical-950 border-t border-tactical-800 px-4 py-2 text-[11px] font-mono text-slate-400 flex flex-wrap items-center justify-between gap-2 shadow-xl">
         <div className="flex items-center space-x-4">
-          <span>PORT: <strong className="text-slate-300">0.0.0.0:8765</strong></span>
-          <span>PROTOCOL: <strong className="text-cyber-cyan">ASTM F3411-22a</strong></span>
-          <span>BROADCAST FREQ: <strong className="text-slate-300">2.0 Hz</strong></span>
-          <span>KINEMATICS: <strong className="text-slate-300">20.0 Hz</strong></span>
+          <span>PORT: <strong className="text-slate-200">0.0.0.0:8765</strong></span>
+          <span>PROTOCOL: <strong className="text-cyber-cyan font-bold font-orbitron">ASTM F3411-22a</strong></span>
+          <span>BROADCAST: <strong className="text-slate-200">2.0 Hz</strong></span>
+          <span>PHYSICS RATE: <strong className="text-slate-200">20.0 Hz</strong></span>
         </div>
-        <div className="flex items-center space-x-3 text-slate-400">
-          <span>DGCA REGULATORY ALTITUDE LIMIT: <strong className="text-cyber-amber">120m AGL</strong></span>
+        <div className="flex items-center space-x-3 text-slate-300">
+          <span>DGCA CEILING LIMIT: <strong className="text-cyber-amber font-bold">120m AGL</strong></span>
           <span>·</span>
-          <span>COCKPIT CLIENT V1.0</span>
+          <span>AEROSPACE COCKPIT UI V2.0</span>
         </div>
       </footer>
 

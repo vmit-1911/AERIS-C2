@@ -8,37 +8,48 @@ export default {
     extend: {
       colors: {
         tactical: {
-          950: '#05070a',
-          900: '#0a0d14',
-          850: '#0f1420',
-          800: '#141b2d',
-          700: '#1e2942',
-          600: '#2d3c5f',
-          500: '#475b87',
+          950: '#030712',
+          900: '#080d1a',
+          850: '#0e1626',
+          800: '#141f36',
+          750: '#1a2948',
+          700: '#22355c',
+          600: '#2f497d',
+          500: '#4365aa',
+          400: '#6889cc',
         },
         cyber: {
-          cyan: '#00ffcc',
-          blue: '#00b4d8',
-          amber: '#ffb700',
-          red: '#ff2a5f',
-          green: '#00ff66',
-          purple: '#b5179e',
+          cyan: '#00f0ff',
+          blue: '#00a8ff',
+          sky: '#38bdf8',
+          amber: '#ffb800',
+          orange: '#ff7700',
+          red: '#ff2e63',
+          green: '#00f59b',
+          emerald: '#10b981',
+          purple: '#a855f7',
         }
       },
       fontFamily: {
-        mono: ['JetBrains Mono', 'Share Tech Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        mono: ['"JetBrains Mono"', 'Share Tech Mono', 'ui-monospace', 'monospace'],
         orbitron: ['Orbitron', 'sans-serif'],
+        rajdhani: ['Rajdhani', 'sans-serif'],
       },
       boxShadow: {
-        'cyan-glow': '0 0 15px rgba(0, 255, 204, 0.35)',
-        'red-glow': '0 0 15px rgba(255, 42, 95, 0.45)',
-        'amber-glow': '0 0 15px rgba(255, 183, 0, 0.35)',
-        'green-glow': '0 0 15px rgba(0, 255, 102, 0.35)',
+        'cyan-glow': '0 0 15px rgba(0, 240, 255, 0.4)',
+        'cyan-glow-lg': '0 0 25px rgba(0, 240, 255, 0.6)',
+        'red-glow': '0 0 15px rgba(255, 46, 99, 0.45)',
+        'red-glow-lg': '0 0 25px rgba(255, 46, 99, 0.7)',
+        'amber-glow': '0 0 15px rgba(255, 184, 0, 0.4)',
+        'green-glow': '0 0 15px rgba(0, 245, 155, 0.4)',
+        'purple-glow': '0 0 15px rgba(168, 85, 247, 0.4)',
       },
       animation: {
         'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'radar-sweep': 'sweep 4s linear infinite',
         'scanline': 'scanline 8s linear infinite',
+        'glitch': 'glitch 0.3s ease-in-out',
+        'beacon': 'beacon 2s cubic-bezier(0, 0, 0.2, 1) infinite',
       },
       keyframes: {
         sweep: {
@@ -48,6 +59,10 @@ export default {
         scanline: {
           '0%': { transform: 'translateY(-100%)' },
           '100%': { transform: 'translateY(100%)' },
+        },
+        beacon: {
+          '0%': { transform: 'scale(0.8)', opacity: '1' },
+          '100%': { transform: 'scale(2.4)', opacity: '0' },
         }
       }
     },

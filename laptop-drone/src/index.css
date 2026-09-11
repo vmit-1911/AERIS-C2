@@ -4,30 +4,90 @@
 
 @layer base {
   body {
-    background-color: #05070a;
+    background-color: #030712;
     color: #e2e8f0;
     overflow-x: hidden;
+    font-family: 'Rajdhani', sans-serif;
   }
 }
 
 /* Tactical Cyber Grid Background */
 .bg-grid-pattern {
-  background-size: 32px 32px;
+  background-size: 30px 30px;
   background-image: 
-    linear-gradient(to right, rgba(0, 255, 204, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 255, 204, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, rgba(0, 240, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 240, 255, 0.035) 1px, transparent 1px);
 }
 
 .bg-dot-pattern {
-  background-size: 20px 20px;
-  background-image: radial-gradient(rgba(0, 255, 204, 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-image: radial-gradient(rgba(0, 240, 255, 0.12) 1.2px, transparent 1.2px);
 }
 
-/* Scanlines overlay */
+/* Glassmorphism Tactical Bezel Cards */
+.glass-panel {
+  background: rgba(8, 13, 26, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  box-shadow: 0 10px 35px -5px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel-alert {
+  background: rgba(28, 8, 16, 0.90);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 46, 99, 0.45);
+  box-shadow: 0 0 25px rgba(255, 46, 99, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-warning {
+  background: rgba(28, 20, 8, 0.90);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 184, 0, 0.45);
+  box-shadow: 0 0 25px rgba(255, 184, 0, 0.25);
+}
+
+/* Aerospace Tactical Corner Brackets */
+.tactical-bracket {
+  position: relative;
+}
+.tactical-bracket::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid #00f0ff;
+  border-left: 2px solid #00f0ff;
+  pointer-events: none;
+  z-index: 10;
+}
+.tactical-bracket::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-bottom: 2px solid #00f0ff;
+  border-right: 2px solid #00f0ff;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.tactical-bracket-alert::before {
+  border-color: #ff2e63 !important;
+}
+.tactical-bracket-alert::after {
+  border-color: #ff2e63 !important;
+}
+
+/* CRT Scanlines and HUD Shader Overlay */
 .scanline-overlay {
   background: linear-gradient(
     rgba(18, 16, 16, 0) 50%, 
-    rgba(0, 0, 0, 0.25) 50%
+    rgba(0, 0, 0, 0.3) 50%
   ), linear-gradient(
     90deg,
     rgba(255, 0, 0, 0.03),
@@ -38,88 +98,54 @@
   pointer-events: none;
 }
 
-/* Glassmorphism tactical card */
-.glass-panel {
-  background: rgba(10, 13, 20, 0.82);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 255, 204, 0.18);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-}
-
-.glass-panel-alert {
-  background: rgba(26, 10, 15, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 42, 95, 0.45);
-  box-shadow: 0 0 20px rgba(255, 42, 95, 0.25);
-}
-
-/* Tactical borders with corner notches */
-.tactical-border {
-  position: relative;
-}
-.tactical-border::before {
-  content: '';
-  position: absolute;
-  top: -1px;
-  left: -1px;
-  width: 8px;
-  height: 8px;
-  border-top: 2px solid #00ffcc;
-  border-left: 2px solid #00ffcc;
-  pointer-events: none;
-}
-.tactical-border::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 8px;
-  height: 8px;
-  border-bottom: 2px solid #00ffcc;
-  border-right: 2px solid #00ffcc;
-  pointer-events: none;
-}
-
 /* Custom Tactical Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0d14;
+  background: #080d1a;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e2942;
-  border-radius: 3px;
-  border: 1px solid rgba(0, 255, 204, 0.2);
+  background: #1a2948;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 240, 255, 0.2);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #00ffcc;
+  background: #00f0ff;
+  box-shadow: 0 0 8px #00f0ff;
 }
 
-/* Inverted Dark Map Filter for Leaflet */
+/* Inverted High-Contrast Map Styling */
 .leaflet-container {
-  background-color: #05070a !important;
+  background-color: #030712 !important;
   font-family: 'JetBrains Mono', monospace !important;
 }
 
 .tactical-map-tiles {
-  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+  filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.35) brightness(0.75);
 }
 
-/* Tactical Pulse Ring Animation */
-@keyframes ping-slow {
-  0% {
-    transform: scale(0.8);
-    opacity: 0.8;
-  }
-  80%, 100% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
+/* Custom Glowing Tactical Marker Popups */
+.leaflet-popup-content-wrapper {
+  background: rgba(8, 13, 26, 0.95) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(0, 240, 255, 0.4) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.25) !important;
+  color: #e2e8f0 !important;
+  padding: 0 !important;
+}
+.leaflet-popup-tip {
+  background: rgba(8, 13, 26, 0.95) !important;
+  border: 1px solid rgba(0, 240, 255, 0.4) !important;
 }
 
-.animate-ping-slow {
-  animation: ping-slow 2.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+/* Pulse animation utility */
+@keyframes beacon-ping {
+  0% { transform: scale(0.85); opacity: 0.9; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+.animate-beacon-ping {
+  animation: beacon-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
