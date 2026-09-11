@@ -26,7 +26,6 @@ import {
 import AttitudeIndicator from './components/AttitudeIndicator';
 import FlightHUD from './components/FlightHUD';
 import TacticalMap from './components/TacticalMap';
-import ScenarioPanel from './components/ScenarioPanel';
 import FlightControls from './components/FlightControls';
 import RemoteIdInspector from './components/RemoteIdInspector';
 import SurveillanceConsoleModal from './components/SurveillanceConsoleModal';
@@ -165,8 +164,6 @@ export default function App() {
           } else if (payload.type === 'pong') {
             const rtt = Math.round(performance.now() - payload.client_ts);
             setLatencyMs(Math.max(1, rtt));
-          } else if (payload.type === 'scenario_feedback') {
-            sfx.playModeSwitch();
           }
         } catch (err) {
           console.error('Error parsing WS frame:', err);
@@ -194,7 +191,7 @@ export default function App() {
     };
   }, [connectWebSocket]);
 
-  // Command Dispatchers
+  // Command Dispatcher
   const sendControl = useCallback((controlData) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
@@ -205,16 +202,6 @@ export default function App() {
     }
   }, []);
 
-  const injectScenario = useCallback((scenarioKey) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'set_scenario',
-        scenario: scenarioKey
-      }));
-      sfx.playModeSwitch();
-    }
-  }, []);
-
   const toggleSound = () => {
     const next = !soundEnabled;
     setSoundEnabled(next);
@@ -222,7 +209,7 @@ export default function App() {
     if (next) sfx.playClick();
   };
 
-  // Fallback defaults
+  // Telemetry attributes
   const currentAlt = telemetry?.alt_geo_m || 60.0;
   const currentSpeed = telemetry?.speed_horizontal_mps || 12.5;
   const currentHeading = telemetry?.heading_deg || 45.0;
@@ -354,26 +341,19 @@ export default function App() {
           />
         </div>
 
-        {/* COLUMN 2: PRIMARY FLIGHT DISPLAY (PFD) HUD & SCENARIO MATRIX (4 COLS) */}
-        <div className="lg:col-span-4 flex flex-col space-y-3.5">
-          <FlightHUD
-            telemetry={telemetry}
-            regulatoryCeiling={regulatoryCeiling}
-          />
-          <ScenarioPanel
-            onInjectScenario={injectScenario}
-            transmissionState={transmissionState}
-            flightMode={flightMode}
-            uasId={uasId}
-            alt={currentAlt}
-          />
-        </div>
-
-        {/* COLUMN 3: TACTICAL RADAR GEO-MAP & ASTM INSPECTOR (4 COLS) */}
+        {/* COLUMN 2: TACTICAL RADAR GEO-MAP DISPLAY (4 COLS) */}
         <div className="lg:col-span-4 flex flex-col space-y-3.5">
           <TacticalMap
             telemetry={telemetry}
             onSendWaypoint={(lat, lon) => sendControl({ lat, lon })}
+          />
+        </div>
+
+        {/* COLUMN 3: PRIMARY FLIGHT DISPLAY (PFD) HUD & ASTM INSPECTOR (4 COLS) */}
+        <div className="lg:col-span-4 flex flex-col space-y-3.5">
+          <FlightHUD
+            telemetry={telemetry}
+            regulatoryCeiling={regulatoryCeiling}
           />
           <RemoteIdInspector
             telemetry={telemetry}
